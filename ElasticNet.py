@@ -77,7 +77,7 @@ plt.axvline(0.7, color='gray', linestyle='--', label="Expected Threshold")
 # Labels and formatting
 plt.xlabel("Correlation between $\\bar{X}_1$ and $\\bar{X}_2$")
 plt.ylabel("Selected Feature\n(0 = $\\bar{X}_1$, 1 = $\\bar{X}_2$, -1 = None)")
-plt.title("Feature Selection Behavior vs. Correlation")
+plt.title("Feature Selection Behavior vs. Correlation (Jitter Added)")
 plt.yticks([-1, 0, 1], ['None', '$\\bar{X}_1$', '$\\bar{X}_2$'])
 plt.legend()
 plt.grid(True)
