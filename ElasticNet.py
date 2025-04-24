@@ -23,6 +23,9 @@ elastic_selected = []
 lasso_coefs = []
 elastic_coefs = []
 
+# Track when LASSO starts misbehaving
+lasso_behavior_shift = []
+
 for noise2_std in noise2_std_range:
     X1 = X_true + np.random.normal(0, noise1_std, n_samples)
     X2 = X_true + np.random.normal(0, noise2_std, n_samples)
@@ -37,12 +40,21 @@ for noise2_std in noise2_std_range:
     lasso = Lasso(alpha=0.01)
     lasso.fit(X_scaled, Y)
     lasso_coefs.append(lasso.coef_)
+
+    # Detecting LASSO's behavior shift:
     if np.all(lasso.coef_ == 0):
         lasso_selected.append(-1)  # Nothing selected
+        lasso_behavior_shift.append(False)
     else:
-        lasso_selected.append(np.argmax(np.abs(lasso.coef_)))
+        max_coefficient_index = np.argmax(np.abs(lasso.coef_))
+        lasso_selected.append(max_coefficient_index)
+        # Check if the behavior shifts to selecting both features (which should not happen)
+        if np.count_nonzero(lasso.coef_) > 1:
+            lasso_behavior_shift.append(True)
+        else:
+            lasso_behavior_shift.append(False)
 
-    # Elastic Net (also lower alpha)
+    # Elastic Net (lower alpha)
     enet = ElasticNet(alpha=0.01, l1_ratio=0.5)
     enet.fit(X_scaled, Y)
     elastic_coefs.append(enet.coef_)
@@ -51,8 +63,14 @@ for noise2_std in noise2_std_range:
     else:
         elastic_selected.append(np.argmax(np.abs(enet.coef_)))
 
+# Now, identify the correlation where LASSO's feature selection starts misbehaving (shifting)
+lasso_outperformance_threshold = None
+for i, corr in enumerate(correlations):
+    if lasso_behavior_shift[i]:
+        lasso_outperformance_threshold = corr
+        break
+
 # Plotting
-# Example usage in your simulation plotting:
 plt.figure(figsize=(10, 6))
 
 # Create jitter for better separation
@@ -72,7 +90,8 @@ plt.scatter(elastic_x, np.array(elastic_selected) + elastic_jitter_y,
             label="Elastic Net", alpha=0.7, color='green', marker='s', s=80)
 
 # Add threshold line
-plt.axvline(0.7, color='gray', linestyle='--', label="Expected Threshold")
+if lasso_outperformance_threshold:
+    plt.axvline(lasso_outperformance_threshold, color='red', linestyle='--', label="LASSO Outperformance Threshold")
 
 # Labels and formatting
 plt.xlabel("Correlation between $\\bar{X}_1$ and $\\bar{X}_2$")
@@ -83,3 +102,9 @@ plt.legend()
 plt.grid(True)
 plt.tight_layout()
 plt.show()
+
+# Print out the threshold value where LASSO starts misbehaving
+if lasso_outperformance_threshold:
+    print(f"LASSO starts misbehaving at a correlation of: {lasso_outperformance_threshold}")
+else:
+    print("No distinct behavior shift detected for LASSO.")
