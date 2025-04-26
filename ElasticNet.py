@@ -29,32 +29,35 @@ lasso_behavior_shift = []
 for noise2_std in noise2_std_range:
     X1 = X_true + np.random.normal(0, noise1_std, n_samples)
     X2 = X_true + np.random.normal(0, noise2_std, n_samples)
-
+    
     X = np.vstack((X1, X2)).T
     X_scaled = StandardScaler().fit_transform(X)
+    
+    # New dynamic Y depending on X2 noise
+    w = 1.0 / (noise2_std + 1)
+    w = w / (1 + w)  # normalize between 0 and 1
+    Y = (1 - w) * X1 + w * X2
 
     corr = np.corrcoef(X_scaled[:, 0], X_scaled[:, 1])[0, 1]
     correlations.append(corr)
 
-    # LASSO (lower alpha)
+    # LASSO
     lasso = Lasso(alpha=0.01)
     lasso.fit(X_scaled, Y)
     lasso_coefs.append(lasso.coef_)
 
-    # Detecting LASSO's behavior shift:
     if np.all(lasso.coef_ == 0):
-        lasso_selected.append(-1)  # Nothing selected
+        lasso_selected.append(-1)
         lasso_behavior_shift.append(False)
     else:
         max_coefficient_index = np.argmax(np.abs(lasso.coef_))
         lasso_selected.append(max_coefficient_index)
-        # Check if the behavior shifts to selecting both features (which should not happen)
         if np.count_nonzero(lasso.coef_) > 1:
             lasso_behavior_shift.append(True)
         else:
             lasso_behavior_shift.append(False)
 
-    # Elastic Net (lower alpha)
+    # Elastic Net
     enet = ElasticNet(alpha=0.01, l1_ratio=0.5)
     enet.fit(X_scaled, Y)
     elastic_coefs.append(enet.coef_)
@@ -62,6 +65,34 @@ for noise2_std in noise2_std_range:
         elastic_selected.append(-1)
     else:
         elastic_selected.append(np.argmax(np.abs(enet.coef_)))
+
+import matplotlib.colors as mcolors
+
+# Define a colormap
+cmap = mcolors.ListedColormap(['gray', 'blue', 'green'])  # None = gray, X1 = blue, X2 = green
+
+# Map selection to integers for plotting
+# -1 -> 0 (gray for None), 0 -> 1 (blue for X1), 1 -> 2 (green for X2)
+selection_map = { -1: 0, 0: 1, 1: 2 }
+lasso_selection_mapped = [selection_map[sel] for sel in lasso_selected]
+
+# Make a figure
+plt.figure(figsize=(10, 2))
+
+# Use scatter but fill the plot
+plt.scatter(correlations, np.ones_like(correlations), 
+            c=lasso_selection_mapped, cmap=cmap, marker='s', s=200)
+
+# Formatting
+plt.xlabel("Correlation between $\\bar{X}_1$ and $\\bar{X}_2$")
+plt.title("LASSO Feature Selection Phase Diagram")
+plt.yticks([])
+plt.grid(False)
+plt.xlim(min(correlations), max(correlations))
+plt.tight_layout()
+plt.show()
+
+
 
 # Now, identify the correlation where LASSO's feature selection starts misbehaving (shifting)
 lasso_outperformance_threshold = None
