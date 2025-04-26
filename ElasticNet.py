@@ -42,7 +42,7 @@ for noise2_std in noise2_std_range:
     correlations.append(corr)
 
     # LASSO
-    lasso = Lasso(alpha=0.01)
+    lasso = Lasso(alpha=0.6)
     lasso.fit(X_scaled, Y)
     lasso_coefs.append(lasso.coef_)
 
@@ -58,7 +58,7 @@ for noise2_std in noise2_std_range:
             lasso_behavior_shift.append(False)
 
     # Elastic Net
-    enet = ElasticNet(alpha=0.01, l1_ratio=0.5)
+    enet = ElasticNet(alpha=0.6, l1_ratio=0.5)
     enet.fit(X_scaled, Y)
     elastic_coefs.append(enet.coef_)
     if np.all(enet.coef_ == 0):
